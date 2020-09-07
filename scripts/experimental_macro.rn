@@ -1,4 +1,7 @@
 use std::experiments::test_add;
+use std::experiments::make_function;
+
+make_function!(test);
 
 fn main() {
     let a = 1;

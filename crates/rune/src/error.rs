@@ -30,7 +30,7 @@ pub enum ParseError {
         span: Span,
     },
     /// Error raised when we expect and end-of-file but it didn't happen.
-    #[error("expected end of file, but encountered `{actual}`")]
+    #[error("expected end of input, but encountered `{actual}`")]
     ExpectedEof {
         /// Span that caused the error.
         span: Span,

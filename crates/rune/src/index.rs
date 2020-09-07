@@ -22,6 +22,7 @@ pub(crate) struct Macro {
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum MacroKind {
     Expr,
+    Decl,
 }
 
 /// Import to process.
@@ -708,6 +709,19 @@ impl Index<ast::Decl> for Indexer<'_> {
                 } else {
                     self.handle_file_mod(decl_mod)?;
                 }
+            }
+            ast::Decl::ExprCallMacro(expr_call_macro) => {
+                let _guard = self.items.push_macro();
+
+                self.macros.push_back(Macro {
+                    items: self.items.snapshot(),
+                    ast: expr_call_macro.clone(),
+                    source: self.source.clone(),
+                    source_id: self.source_id,
+                    scopes: self.scopes.snapshot(),
+                    impl_items: self.impl_items.clone(),
+                    kind: MacroKind::Decl,
+                });
             }
         }
 

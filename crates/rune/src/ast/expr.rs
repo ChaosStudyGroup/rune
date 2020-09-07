@@ -2,7 +2,10 @@ use crate::ast;
 use crate::ast::{Delimiter, Kind, Token};
 use crate::error::ParseError;
 use crate::parser::Parser;
-use crate::traits::{Parse, Peek};
+use crate::{
+    traits::{Parse, Peek},
+    IntoTokens,
+};
 use runestick::Span;
 use std::ops;
 
@@ -573,6 +576,16 @@ impl Peek for Expr {
             ast::Kind::Break => true,
             ast::Kind::Return => true,
             _ => false,
+        }
+    }
+}
+
+impl IntoTokens for Expr {
+    fn into_tokens(self, context: &mut crate::MacroContext, stream: &mut crate::TokenStream) {
+        match self {
+            Self::Self_(expr) => expr.into_tokens(context, stream),
+            Self::Path(expr) => expr.into_tokens(context, stream),
+            _ => todo!("implement IntoTokens for a whole lot of things"),
         }
     }
 }

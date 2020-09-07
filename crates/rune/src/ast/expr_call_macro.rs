@@ -1,7 +1,7 @@
 use crate::ast;
 use crate::error::ParseError;
 use crate::parser::Parser;
-use crate::token_stream::TokenStream;
+use crate::{token_stream::TokenStream, Parse};
 use runestick::Span;
 
 /// A function call `<expr>!(<args>)`.
@@ -20,6 +20,11 @@ pub struct ExprCallMacro {
 }
 
 impl ExprCallMacro {
+    /// Access the span of expression.
+    pub fn span(&self) -> Span {
+        self.path.span().join(self.close.span)
+    }
+
     /// Parse with an expression.
     pub fn parse_with_path(parser: &mut Parser, path: ast::Path) -> Result<Self, ParseError> {
         let bang: ast::Bang = parser.parse()?;
@@ -80,9 +85,9 @@ impl ExprCallMacro {
     }
 }
 
-impl ExprCallMacro {
-    /// Access the span of expression.
-    pub fn span(&self) -> Span {
-        self.path.span().join(self.close.span)
+impl Parse for ExprCallMacro {
+    fn parse(parser: &mut Parser) -> Result<Self, ParseError> {
+        let path = parser.parse()?;
+        Self::parse_with_path(parser, path)
     }
 }

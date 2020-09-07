@@ -6,18 +6,27 @@ use crate::index::{Index, Indexer, Macro, MacroKind};
 use crate::index_scopes::IndexScopes;
 use crate::items::Items;
 use crate::loops::Loops;
+use crate::macros::MacroCompiler;
 use crate::query::{Build, BuildEntry, Query};
 use crate::scopes::{Scope, ScopeGuard, Scopes};
 use crate::traits::Compile as _;
 use crate::{
-    Assembly, LoadError, LoadErrorKind, MacroContext, Options, Resolve as _, SourceId, Sources,
-    Storage, UnitBuilder, Warnings,
+    Assembly, LoadError, LoadErrorKind, MacroContext, Options, Parse, Resolve as _, SourceId,
+    Sources, Storage, UnitBuilder, Warnings,
 };
 use runestick::{CompileMeta, Context, Inst, Item, Label, Source, Span, TypeCheck};
 use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::rc::Rc;
 use std::sync::Arc;
+
+/// An item that has been expanded by a macro.
+pub(crate) enum Expanded {
+    /// The expansion resulted in an expression.
+    Expr(ast::Expr),
+    /// The expansion resulted in a declaration.
+    Decl(ast::Decl),
+}
 
 /// A needs hint for an expression.
 /// This is used to contextually determine what an expression is expected to
@@ -66,7 +75,7 @@ pub fn compile_with_options(
     // Files loaded while loading modules.
     let mut loaded = HashMap::<Item, (SourceId, Span)>::new();
     // Expanded expressions.
-    let mut expanded_expr = HashMap::new();
+    let mut expanded = HashMap::new();
 
     while let Some((item, source_id)) = sources.next_source() {
         let source = match sources.get(source_id).cloned() {
@@ -134,7 +143,7 @@ pub fn compile_with_options(
 
             let mut macro_context = MacroContext::new(storage.clone(), source.clone());
 
-            let mut compiler = crate::macros::MacroCompiler {
+            let compiler = MacroCompiler {
                 storage: storage.clone(),
                 item: item.clone(),
                 macro_context: &mut macro_context,
@@ -145,7 +154,7 @@ pub fn compile_with_options(
             };
 
             // index the newly added macros.
-            let mut indexer = Indexer {
+            let indexer = Indexer {
                 storage: storage.clone(),
                 loaded: &mut loaded,
                 query: &mut query,
@@ -162,24 +171,12 @@ pub fn compile_with_options(
 
             match kind {
                 MacroKind::Expr => {
-                    let expr = match compiler.eval_macro::<ast::Expr>(ast) {
-                        Ok(expr) => expr,
-                        Err(error) => {
-                            return Err(LoadError::from(LoadErrorKind::CompileError {
-                                source_id,
-                                error,
-                            }));
-                        }
-                    };
-
-                    if let Err(error) = indexer.index(&expr) {
-                        return Err(LoadError::from(LoadErrorKind::CompileError {
-                            source_id,
-                            error,
-                        }));
-                    }
-
-                    expanded_expr.insert(item, expr);
+                    let expr = compile_macro::<ast::Expr>(source_id, compiler, indexer, ast)?;
+                    expanded.insert(item, Expanded::Expr(expr));
+                }
+                MacroKind::Decl => {
+                    let expr = compile_macro::<ast::Decl>(source_id, compiler, indexer, ast)?;
+                    expanded.insert(item, Expanded::Decl(expr));
                 }
             }
 
@@ -195,14 +192,7 @@ pub fn compile_with_options(
         let source_id = entry.source_id;
 
         if let Err(error) = compile_entry(
-            context,
-            options,
-            &storage,
-            unit,
-            warnings,
-            &mut query,
-            entry,
-            &expanded_expr,
+            context, options, &storage, unit, warnings, &mut query, entry, &expanded,
         ) {
             return Err(LoadError::from(LoadErrorKind::CompileError {
                 source_id,
@@ -214,6 +204,37 @@ pub fn compile_with_options(
     Ok(())
 }
 
+/// Compile the given macro, return the output from the macro.
+fn compile_macro<'a, T>(
+    source_id: usize,
+    mut compiler: MacroCompiler<'_>,
+    mut indexer: Indexer<'a>,
+    ast: ast::ExprCallMacro,
+) -> Result<T, LoadError>
+where
+    T: Parse,
+    Indexer<'a>: Index<T>,
+{
+    let output = match compiler.eval_macro::<T>(ast) {
+        Ok(output) => output,
+        Err(error) => {
+            return Err(LoadError::from(LoadErrorKind::CompileError {
+                source_id,
+                error,
+            }));
+        }
+    };
+
+    if let Err(error) = indexer.index(&output) {
+        return Err(LoadError::from(LoadErrorKind::CompileError {
+            source_id,
+            error,
+        }));
+    }
+
+    Ok(output)
+}
+
 fn compile_entry(
     context: &Context,
     options: &Options,
@@ -222,7 +243,7 @@ fn compile_entry(
     warnings: &mut Warnings,
     query: &mut Query,
     entry: BuildEntry,
-    expanded_exprs: &HashMap<Item, ast::Expr>,
+    expanded: &HashMap<Item, Expanded>,
 ) -> Result<(), CompileError> {
     let BuildEntry {
         item,
@@ -247,7 +268,7 @@ fn compile_entry(
         loops: Loops::new(),
         options,
         warnings,
-        expanded_exprs,
+        expanded,
     };
 
     match build {
@@ -397,8 +418,8 @@ pub(crate) struct Compiler<'a> {
     pub(crate) storage: &'a Storage,
     /// The context we are compiling for.
     context: &'a Context,
-    /// Expressions expanded in a macro.
-    pub(crate) expanded_exprs: &'a HashMap<Item, ast::Expr>,
+    /// Items expanded by macros.
+    pub(crate) expanded: &'a HashMap<Item, Expanded>,
     /// Query system to compile required items.
     pub(crate) query: &'a mut Query,
     /// The assembly we are generating.

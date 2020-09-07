@@ -2,7 +2,7 @@ use crate::ast;
 use crate::ast::{Kind, Token};
 use crate::error::ParseError;
 use crate::parser::Parser;
-use crate::{Parse, Peek, Resolve, Storage};
+use crate::{IntoTokens, Parse, Peek, Resolve, Storage};
 use runestick::{Source, Span};
 use std::borrow::Cow;
 
@@ -104,5 +104,16 @@ impl<'a> Resolve<'a> for Path {
         }
 
         Ok(output)
+    }
+}
+
+impl IntoTokens for &Path {
+    fn into_tokens(self, context: &mut crate::MacroContext, stream: &mut crate::TokenStream) {
+        self.first.into_tokens(context, stream);
+
+        for (sep, rest) in &self.rest {
+            sep.into_tokens(context, stream);
+            rest.into_tokens(context, stream);
+        }
     }
 }

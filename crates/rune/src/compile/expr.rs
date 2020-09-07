@@ -1,5 +1,5 @@
 use crate::ast;
-use crate::compiler::{Compiler, Needs};
+use crate::compiler::{Compiler, Expanded, Needs};
 use crate::error::CompileResult;
 use crate::traits::Compile;
 use crate::CompileError;
@@ -118,7 +118,7 @@ impl Compile<(&ast::Expr, Needs)> for Compiler<'_> {
                 let _guard = self.items.push_macro();
                 let item = self.items.item();
 
-                if let Some(expr) = self.expanded_exprs.get(&item) {
+                if let Some(Expanded::Expr(expr)) = self.expanded.get(&item) {
                     self.compile((expr, needs))?;
                 } else {
                     let span = expr_call_macro.span();

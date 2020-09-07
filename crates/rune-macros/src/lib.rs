@@ -57,10 +57,26 @@ fn test_add(ctx: &mut MacroContext, stream: &TokenStream) -> runestick::Result<T
     Ok(rune::quote!(ctx => fn test() { #var + #var }))
 }
 
+/// Implementation for the `make_function!` macro.
+fn make_function(ctx: &mut MacroContext, stream: &TokenStream) -> runestick::Result<TokenStream> {
+    use rune::ast;
+    use rune::Resolve as _;
+
+    let mut parser = rune::Parser::from_token_stream(stream);
+
+    let ident = parser.parse::<ast::Ident>()?;
+    let _ = parser.parse::<ast::Rocket>()?;
+    let output = parser.parse::<ast::Expr>()?;
+    parser.parse_eof()?;
+
+    Ok(rune::quote!(ctx => fn #ident() { #output }))
+}
+
 /// Construct the `http` module.
 pub fn module() -> Result<runestick::Module, runestick::ContextError> {
     let mut module = runestick::Module::new(&["std", "experiments"]);
     module.macro_(&["passthrough"], passthrough_impl)?;
     module.macro_(&["test_add"], test_add)?;
+    module.macro_(&["make_function"], make_function)?;
     Ok(module)
 }

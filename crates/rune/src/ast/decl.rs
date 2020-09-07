@@ -19,6 +19,8 @@ pub enum Decl {
     DeclImpl(ast::DeclImpl),
     /// A module declaration.
     DeclMod(ast::DeclMod),
+    /// A macro call.
+    ExprCallMacro(ast::ExprCallMacro),
 }
 
 impl Decl {
@@ -31,6 +33,7 @@ impl Decl {
             Self::DeclStruct(decl) => decl.span(),
             Self::DeclImpl(decl) => decl.span(),
             Self::DeclMod(decl) => decl.span(),
+            Self::ExprCallMacro(expr) => expr.span(),
         }
     }
 
@@ -43,6 +46,7 @@ impl Decl {
             Self::DeclStruct(decl_struct) => decl_struct.needs_semi_colon(),
             Self::DeclImpl(..) => false,
             Self::DeclMod(decl_mod) => decl_mod.needs_semi_colon(),
+            Self::ExprCallMacro(..) => true,
         }
     }
 }
@@ -61,6 +65,7 @@ impl Peek for Decl {
             ast::Kind::Impl => true,
             ast::Kind::Async | ast::Kind::Fn => true,
             ast::Kind::Mod => true,
+            ast::Kind::Ident(..) => true,
             _ => false,
         }
     }
@@ -77,6 +82,7 @@ impl Parse for Decl {
             ast::Kind::Impl => Self::DeclImpl(parser.parse()?),
             ast::Kind::Async | ast::Kind::Fn => Self::DeclFn(parser.parse()?),
             ast::Kind::Mod => Self::DeclMod(parser.parse()?),
+            ast::Kind::Ident(..) => Self::ExprCallMacro(parser.parse()?),
             _ => {
                 return Err(ParseError::ExpectedDecl {
                     actual: t.kind,
