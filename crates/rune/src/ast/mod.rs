@@ -42,6 +42,7 @@ mod expr_unary;
 mod expr_while;
 mod expr_yield;
 mod fn_arg;
+mod ident;
 mod lit_bool;
 mod lit_byte;
 mod lit_byte_str;
@@ -100,6 +101,7 @@ pub use self::expr_unary::{ExprUnary, UnaryOp};
 pub use self::expr_while::ExprWhile;
 pub use self::expr_yield::ExprYield;
 pub use self::fn_arg::FnArg;
+pub use self::ident::Ident;
 pub use self::lit_bool::LitBool;
 pub use self::lit_byte::LitByte;
 pub use self::lit_byte_str::LitByteStr;
@@ -189,7 +191,6 @@ decl_tokens! {
     (Match, "The `match` keyword.", Kind::Match),
     (Else, "The `else` keyword.", Kind::Else),
     (Let, "The `let` keyword.", Kind::Let),
-    (Ident, "An identifier, like `foo` or `Hello`.", Kind::Ident),
     (Label, "A label, like `'foo`", Kind::Label),
     (Underscore, "The underscore `_`.", Kind::Underscore),
     (Comma, "A comma `,`.", Kind::Comma),
@@ -221,18 +222,6 @@ decl_tokens! {
     (Mul, "Multiply `*` operator.", Kind::Star),
     (Mod, "The `mod` keyword.", Kind::Mod),
     (Bang, "The `!` operator.", Kind::Bang),
-}
-
-impl<'a> Resolve<'a> for Ident {
-    type Output = &'a str;
-
-    fn resolve(&self, source: &'a Source) -> Result<&'a str, ParseError> {
-        let span = self.token.span;
-
-        source
-            .source(span)
-            .ok_or_else(|| ParseError::BadSlice { span })
-    }
 }
 
 impl<'a> Resolve<'a> for Label {

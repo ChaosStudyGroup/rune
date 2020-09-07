@@ -203,7 +203,7 @@ pub use crate::options::Options;
 pub use crate::parser::Parser;
 pub use crate::sources::Sources;
 pub use crate::token_stream::{IntoTokens, TokenStream, TokenStreamIter};
-pub use crate::traits::{Parse, Resolve};
+pub use crate::traits::{Parse, Peek, Resolve};
 pub use crate::warning::{Warning, WarningKind, Warnings};
 pub use compiler::compile;
 pub use unit_builder::{ImportEntry, ImportKey, UnitBuilder};
