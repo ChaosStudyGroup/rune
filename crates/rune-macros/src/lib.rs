@@ -48,13 +48,13 @@ fn test_add(ctx: &mut MacroContext, stream: &TokenStream) -> runestick::Result<T
     let var = parser.parse::<ast::Ident>()?;
     parser.parse_eof()?;
 
-    let ident = ident.resolve(ctx.source())?;
+    let ident = ident.resolve(ctx.storage(), ctx.source())?;
 
     if ident != "please" {
         return Err(runestick::Error::msg("you didn't ask nicely..."));
     }
 
-    Ok(rune::quote!(ctx => || #var + #var))
+    Ok(rune::quote!(ctx => fn test() { #var + #var }))
 }
 
 /// Construct the `http` module.

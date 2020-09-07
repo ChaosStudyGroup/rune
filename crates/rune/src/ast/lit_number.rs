@@ -1,7 +1,5 @@
 use crate::ast;
-use crate::error::ParseError;
-use crate::parser::Parser;
-use crate::traits::{Parse, Resolve};
+use crate::{Parse, ParseError, Parser, Resolve, Storage};
 use runestick::{Source, Span};
 
 /// A resolved number literal.
@@ -73,7 +71,7 @@ impl Parse for LitNumber {
 impl<'a> Resolve<'a> for LitNumber {
     type Output = Number;
 
-    fn resolve(&self, source: &'a Source) -> Result<Number, ParseError> {
+    fn resolve(&self, _: &Storage, source: &'a Source) -> Result<Number, ParseError> {
         use num::{Num as _, ToPrimitive as _};
         use std::ops::Neg as _;
         use std::str::FromStr as _;

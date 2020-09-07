@@ -50,12 +50,6 @@ macro_rules! quote {
         $crate::quote!(@push $ctx, $stream => $($tt)*);
     }};
 
-    (@push $ctx:expr, $stream:expr => $ident:ident $($tt:tt)*) => {{
-        let ident = $ctx.ident(stringify!($ident));
-        $stream.push($stream);
-        $crate::quote!(@push $ctx, $stream => $($tt)*);
-    }};
-
     (@push $ctx:expr, $stream:expr => self $($tt:tt)*) => {{
         $crate::quote!(@token $ctx, $stream, Self_ => $($tt)*);
     }};
@@ -192,16 +186,31 @@ macro_rules! quote {
         $crate::quote!(@token $ctx, $stream, Mod => $($tt)*);
     }};
 
-    (@push $ctx:expr, $stream:expr => { $($tt:tt)* }) => {{
+    (@push $ctx:expr, $stream:expr => { $($tt:tt)* } $($rest:tt)*) => {{
         $crate::quote!(@wrap $ctx, $stream, Brace => $($tt)*);
+        $crate::quote!(@push $ctx, $stream => $($rest)*);
     }};
 
-    (@push $ctx:expr, $stream:expr => [ $($tt:tt)* ]) => {{
+    (@push $ctx:expr, $stream:expr => [ $($tt:tt)* ] $($rest:tt)*) => {{
         $crate::quote!(@wrap $ctx, $stream, Bracket => $($tt)*);
+        $crate::quote!(@push $ctx, $stream => $($rest)*);
     }};
 
-    (@push $ctx:expr, $stream:expr => ( $($tt:tt)* )) => {{
+    (@push $ctx:expr, $stream:expr => ( $($tt:tt)* ) $($rest:tt)*) => {{
         $crate::quote!(@wrap $ctx, $stream, Parenthesis => $($tt)*);
+        $crate::quote!(@push $ctx, $stream => $($rest)*);
+    }};
+
+    (@push $ctx:expr, $stream:expr => ( $($tt:tt)* ) $($rest:tt)*) => {{
+        $crate::quote!(@wrap $ctx, $stream, Parenthesis => $($tt)*);
+        $crate::quote!(@push $ctx, $stream => $($rest)*);
+    }};
+
+    (@push $ctx:expr, $stream:expr => $ident:ident $($tt:tt)*) => {{
+        let id = $ctx.storage().insert_ident(stringify!($ident));
+        let kind = $crate::ast::Kind::Ident($crate::ast::IdentKind::Synthetic(id));
+        $crate::IntoTokens::into_tokens(kind, $ctx, $stream);
+        $crate::quote!(@push $ctx, $stream => $($tt)*);
     }};
 
     (@push $ctx:expr, $stream:expr =>) => {};

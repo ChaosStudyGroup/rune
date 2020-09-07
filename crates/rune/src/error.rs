@@ -237,6 +237,14 @@ pub enum ParseError {
         /// The slice we tried to read.
         span: Span,
     },
+    /// Attempt to read a slice which doesn't exist.
+    #[error("tried to get bad synthetic identifier `{id}`")]
+    BadIdentId {
+        /// The slice we tried to read.
+        span: Span,
+        /// The identifier that was bad.
+        id: usize,
+    },
     /// Encountered a bad string escape sequence.
     #[error("bad escape sequence")]
     BadEscapeSequence {
@@ -383,6 +391,7 @@ impl ParseError {
             Self::ExpectedUnaryOperator { span, .. } => span,
             Self::PrecedenceGroupRequired { span, .. } => span,
             Self::BadSlice { span, .. } => span,
+            Self::BadIdentId { span, .. } => span,
             Self::BadEscapeSequence { span, .. } => span,
             Self::BadNumberLiteral { span, .. } => span,
             Self::BadNumberOutOfBounds { span, .. } => span,

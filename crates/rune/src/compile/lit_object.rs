@@ -25,7 +25,10 @@ impl Compile<(&ast::LitObject, Needs)> for Compiler<'_> {
 
         for assign in &lit_object.assignments {
             let span = assign.span();
-            let key = assign.key.resolve(&*self.source)?.to_string();
+            let key = assign
+                .key
+                .resolve(&self.storage, &*self.source)?
+                .to_string();
             keys.push(key.clone());
             check_keys.push((key.clone(), assign.key.span()));
 
@@ -50,7 +53,7 @@ impl Compile<(&ast::LitObject, Needs)> for Compiler<'_> {
                     self.asm.push(Inst::Pop, span);
                 }
             } else {
-                let key = assign.key.resolve(&*self.source)?;
+                let key = assign.key.resolve(&self.storage, &*self.source)?;
                 let var = self.scopes.get_var(&*key, span)?;
 
                 if needs.value() {

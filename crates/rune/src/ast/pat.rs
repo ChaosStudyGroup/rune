@@ -126,7 +126,7 @@ impl Parse for Pat {
             ast::Kind::LitNumber { .. } => Self::PatNumber(parser.parse()?),
             ast::Kind::LitStr { .. } => Self::PatString(parser.parse()?),
             ast::Kind::Underscore => Self::PatIgnore(parser.parse()?),
-            ast::Kind::Ident => Self::parse_ident(parser)?,
+            ast::Kind::Ident(..) => Self::parse_ident(parser)?,
             _ => {
                 return Err(ParseError::ExpectedPatError {
                     span: token.span,
@@ -153,7 +153,7 @@ impl Peek for Pat {
             ast::Kind::LitNumber { .. } => true,
             ast::Kind::LitStr { .. } => true,
             ast::Kind::Underscore => true,
-            ast::Kind::Ident => true,
+            ast::Kind::Ident(..) => true,
             _ => false,
         }
     }

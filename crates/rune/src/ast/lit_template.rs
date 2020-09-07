@@ -1,7 +1,10 @@
 use crate::ast;
 use crate::error::ParseError;
 use crate::parser::Parser;
-use crate::traits::{Parse, Resolve};
+use crate::{
+    traits::{Parse, Resolve},
+    Storage,
+};
 use runestick::{Source, Span};
 
 /// A string literal.
@@ -40,7 +43,7 @@ pub struct Template {
 impl<'a> Resolve<'a> for LitTemplate {
     type Output = Template;
 
-    fn resolve(&self, source: &'a Source) -> Result<Self::Output, ParseError> {
+    fn resolve(&self, _: &Storage, source: &'a Source) -> Result<Self::Output, ParseError> {
         let span = self.span().narrow(1);
         let string = source
             .source(span)

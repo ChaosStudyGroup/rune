@@ -1,8 +1,6 @@
 //! AST for the Rune language.
 
-use crate::error::ParseError;
-use crate::parser::Parser;
-use crate::traits::{Parse, Peek, Resolve};
+use crate::{Parse, ParseError, Parser, Peek, Resolve, Storage};
 use runestick::{Source, Span};
 
 mod condition;
@@ -120,7 +118,7 @@ pub use self::pat_path::PatPath;
 pub use self::pat_tuple::PatTuple;
 pub use self::pat_vec::PatVec;
 pub use self::path::Path;
-pub use self::token::{Delimiter, Kind, NumberKind, Token};
+pub use self::token::{Delimiter, IdentKind, Kind, NumberKind, Token};
 
 macro_rules! decl_tokens {
     ($(($parser:ident, $doc:expr, $($kind:tt)*),)*) => {
@@ -227,7 +225,7 @@ decl_tokens! {
 impl<'a> Resolve<'a> for Label {
     type Output = &'a str;
 
-    fn resolve(&self, source: &'a Source) -> Result<&'a str, ParseError> {
+    fn resolve(&self, _: &Storage, source: &'a Source) -> Result<&'a str, ParseError> {
         let span = self.token.span;
 
         source

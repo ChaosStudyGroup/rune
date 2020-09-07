@@ -83,6 +83,11 @@ impl<'a> Lexer<'a> {
 
         let ident = &self.source[start..self.cursor];
 
+        let span = Span {
+            start,
+            end: self.cursor,
+        };
+
         let kind = match ident {
             "self" => ast::Kind::Self_,
             "macro" => ast::Kind::Macro,
@@ -111,16 +116,10 @@ impl<'a> Lexer<'a> {
             "default" => ast::Kind::Default,
             "impl" => ast::Kind::Impl,
             "mod" => ast::Kind::Mod,
-            _ => ast::Kind::Ident,
+            _ => ast::Kind::Ident(ast::IdentKind::Source),
         };
 
-        Ok(Some(ast::Token {
-            kind,
-            span: Span {
-                start,
-                end: self.cursor,
-            },
-        }))
+        Ok(Some(ast::Token { kind, span }))
     }
 
     /// Consume a number literal.

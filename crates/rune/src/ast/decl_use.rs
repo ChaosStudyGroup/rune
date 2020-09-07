@@ -72,7 +72,7 @@ impl Parse for DeclUseComponent {
         let t = parser.token_peek_eof()?;
 
         Ok(match t.kind {
-            ast::Kind::Ident => Self::Ident(parser.parse()?),
+            ast::Kind::Ident(..) => Self::Ident(parser.parse()?),
             ast::Kind::Star => Self::Wildcard(parser.parse()?),
             actual => {
                 return Err(ParseError::ExpectedDeclUseImportComponent {
@@ -91,6 +91,6 @@ impl Peek for DeclUseComponent {
             None => return false,
         };
 
-        matches!(kind, Kind::Ident | Kind::Star)
+        matches!(kind, Kind::Ident(..) | Kind::Star)
     }
 }

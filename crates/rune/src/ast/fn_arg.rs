@@ -33,7 +33,7 @@ impl Parse for FnArg {
         Ok(match token.kind {
             ast::Kind::Self_ => Self::Self_(parser.parse()?),
             ast::Kind::Underscore => Self::Ignore(parser.parse()?),
-            ast::Kind::Ident => Self::Ident(parser.parse()?),
+            ast::Kind::Ident(..) => Self::Ident(parser.parse()?),
             _ => return Err(ParseError::ExpectedFunctionArgument { span: token.span }),
         })
     }

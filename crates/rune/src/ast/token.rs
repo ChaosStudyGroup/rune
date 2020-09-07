@@ -41,6 +41,15 @@ impl fmt::Display for NumberKind {
     }
 }
 
+/// The kind of the identifier.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum IdentKind {
+    /// The identifier is from the source.
+    Source,
+    /// The identifier is synthetic (generated in a macro).
+    Synthetic(usize),
+}
+
 /// A delimiter, `{`, `{`, or `[`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Delimiter {
@@ -130,7 +139,7 @@ pub enum Kind {
     /// The `mod` keyword.
     Mod,
     /// An identifier.
-    Ident,
+    Ident(IdentKind),
     /// A label, like `'loop`.
     Label,
     /// A number literal, like `42` or `3.14` or `0xff`.
@@ -277,7 +286,7 @@ impl fmt::Display for Kind {
             Self::Default => write!(f, "default")?,
             Self::Impl => write!(f, "impl")?,
             Self::Mod => write!(f, "mod")?,
-            Self::Ident => write!(f, "ident")?,
+            Self::Ident(..) => write!(f, "ident")?,
             Self::Label => write!(f, "label")?,
             Self::LitNumber { .. } => write!(f, "number")?,
             Self::LitStr { .. } => write!(f, "string")?,

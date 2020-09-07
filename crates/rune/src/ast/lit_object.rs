@@ -1,7 +1,5 @@
 use crate::ast;
-use crate::error::ParseError;
-use crate::parser::Parser;
-use crate::traits::{Parse, Resolve};
+use crate::{Parse, ParseError, Parser, Resolve, Storage};
 use runestick::{Source, Span};
 use std::borrow::Cow;
 
@@ -125,7 +123,7 @@ impl Parse for LitObjectKey {
 
         Ok(match token.kind {
             ast::Kind::LitStr { .. } => Self::LitStr(parser.parse()?),
-            ast::Kind::Ident => Self::Ident(parser.parse()?),
+            ast::Kind::Ident(..) => Self::Ident(parser.parse()?),
             _ => {
                 return Err(ParseError::ExpectedLitObjectKey {
                     actual: token.kind,
@@ -139,10 +137,10 @@ impl Parse for LitObjectKey {
 impl<'a> Resolve<'a> for LitObjectKey {
     type Output = Cow<'a, str>;
 
-    fn resolve(&self, source: &'a Source) -> Result<Self::Output, ParseError> {
+    fn resolve(&self, storage: &Storage, source: &'a Source) -> Result<Self::Output, ParseError> {
         Ok(match self {
-            Self::LitStr(lit_str) => lit_str.resolve(source)?,
-            Self::Ident(ident) => Cow::Borrowed(ident.resolve(source)?),
+            Self::LitStr(lit_str) => lit_str.resolve(storage, source)?,
+            Self::Ident(ident) => ident.resolve(storage, source)?,
         })
     }
 }

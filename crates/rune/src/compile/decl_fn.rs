@@ -27,8 +27,8 @@ impl Compile<(ast::DeclFn, bool)> for Compiler<'_> {
                 }
                 ast::FnArg::Ident(ident) => {
                     let span = ident.span();
-                    let name = ident.resolve(&*self.source)?;
-                    self.scopes.last_mut(span)?.new_var(name, span)?;
+                    let name = ident.resolve(&self.storage, &*self.source)?;
+                    self.scopes.last_mut(span)?.new_var(name.as_ref(), span)?;
                 }
                 ast::FnArg::Ignore(ignore) => {
                     let span = ignore.span();

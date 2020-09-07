@@ -2,9 +2,7 @@
 
 use crate::ast;
 use crate::collections::{HashMap, HashSet};
-use crate::error::CompileError;
-use crate::traits::Resolve as _;
-use crate::unit_builder::UnitBuilder;
+use crate::{CompileError, Resolve as _, Storage, UnitBuilder};
 use runestick::{
     Call, CompileMeta, CompileMetaCapture, CompileMetaStruct, CompileMetaTuple, Hash, Item, Source,
     Span, Type,
@@ -105,18 +103,20 @@ pub(crate) struct IndexedEntry {
 }
 
 pub(crate) struct Query {
-    pub(crate) queue: VecDeque<BuildEntry>,
-    indexed: HashMap<Item, IndexedEntry>,
+    pub(crate) storage: Storage,
     pub(crate) unit: Rc<RefCell<UnitBuilder>>,
+    pub(crate) queue: VecDeque<BuildEntry>,
+    pub(crate) indexed: HashMap<Item, IndexedEntry>,
 }
 
 impl Query {
     /// Construct a new compilation context.
-    pub fn new(unit: Rc<RefCell<UnitBuilder>>) -> Self {
+    pub fn new(storage: Storage, unit: Rc<RefCell<UnitBuilder>>) -> Self {
         Self {
+            storage,
+            unit,
             queue: VecDeque::new(),
             indexed: HashMap::new(),
-            unit,
         }
     }
 
@@ -400,8 +400,8 @@ impl Query {
                 let mut fields = HashSet::new();
 
                 for (ident, _) in &st.fields {
-                    let ident = ident.resolve(&*source)?;
-                    fields.insert(ident.to_owned());
+                    let ident = ident.resolve(&self.storage, &*source)?;
+                    fields.insert(ident.to_string());
                 }
 
                 let object = CompileMetaStruct {

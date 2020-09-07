@@ -1,7 +1,5 @@
 use crate::ast;
-use crate::error::ParseError;
-use crate::parser::Parser;
-use crate::traits::{Parse, Resolve};
+use crate::{Parse, ParseError, Parser, Resolve, Storage};
 use runestick::{Source, Span};
 
 /// A byte literal.
@@ -50,7 +48,7 @@ impl Parse for LitByte {
 impl<'a> Resolve<'a> for LitByte {
     type Output = u8;
 
-    fn resolve(&self, source: &'a Source) -> Result<u8, ParseError> {
+    fn resolve(&self, _: &Storage, source: &'a Source) -> Result<u8, ParseError> {
         let span = self.token.span;
 
         let string = source

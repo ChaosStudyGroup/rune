@@ -4,10 +4,7 @@ use crate::error::{CompileError, CompileResult};
 use crate::index_scopes::IndexScopes;
 use crate::items::Items;
 use crate::query::{Build, BuildEntry, Function, Indexed, IndexedEntry, InstanceFunction, Query};
-use crate::sources::Sources;
-use crate::traits::Resolve as _;
-use crate::warning::Warnings;
-use crate::{SourceId, UnitBuilder};
+use crate::{Resolve as _, SourceId, Sources, Storage, UnitBuilder, Warnings};
 use runestick::{Call, CompileMeta, Context, Hash, Item, Source, Span, Type};
 use std::collections::VecDeque;
 use std::sync::Arc;
@@ -40,6 +37,7 @@ impl Import {
     pub(crate) fn process(
         self,
         context: &Context,
+        storage: &Storage,
         unit: &mut UnitBuilder,
     ) -> Result<(), CompileError> {
         let Self {
@@ -52,8 +50,8 @@ impl Import {
         let span = decl_use.span();
 
         let mut name = Item::empty();
-        let first = decl_use.first.resolve(&*source)?;
-        name.push(first);
+        let first = decl_use.first.resolve(storage, &*source)?;
+        name.push(first.as_ref());
 
         let mut it = decl_use.rest.iter();
         let last = it.next_back();
@@ -64,7 +62,7 @@ impl Import {
                     return Err(CompileError::UnsupportedWildcard { span: t.span() });
                 }
                 ast::DeclUseComponent::Ident(ident) => {
-                    name.push(ident.resolve(&*source)?);
+                    name.push(ident.resolve(storage, &*source)?.as_ref());
                 }
             }
         }
@@ -93,7 +91,7 @@ impl Import {
                     }
                 }
                 ast::DeclUseComponent::Ident(ident) => {
-                    name.push(ident.resolve(&*source)?);
+                    name.push(ident.resolve(storage, &*source)?.as_ref());
                     unit.new_import(item.clone(), &name, span, source_id)?;
                 }
             }
@@ -104,6 +102,7 @@ impl Import {
 }
 
 pub(crate) struct Indexer<'a> {
+    pub(crate) storage: Storage,
     pub(crate) loaded: &'a mut HashMap<Item, (SourceId, Span)>,
     pub(crate) query: &'a mut Query,
     /// Imports to process.
@@ -141,8 +140,8 @@ impl<'a> Indexer<'a> {
     /// Handle a filesystem module.
     pub(crate) fn handle_file_mod(&mut self, decl_mod: &ast::DeclMod) -> CompileResult<()> {
         let span = decl_mod.span();
-        let name = decl_mod.name.resolve(&*self.source)?;
-        let _guard = self.items.push_name(name);
+        let name = decl_mod.name.resolve(&self.storage, &*self.source)?;
+        let _guard = self.items.push_name(name.as_ref());
 
         let path = match self.source.path() {
             Some(path) => path,
@@ -152,7 +151,7 @@ impl<'a> Indexer<'a> {
         };
 
         let base = match path.parent() {
-            Some(parent) => parent.join(name),
+            Some(parent) => parent.join(name.as_ref()),
             None => {
                 return Err(CompileError::UnsupportedFileMod { span });
             }
@@ -234,7 +233,8 @@ impl Index<ast::DeclFn> for Indexer<'_> {
     fn index(&mut self, decl_fn: &ast::DeclFn) -> CompileResult<()> {
         let span = decl_fn.span();
         let is_toplevel = self.items.is_empty();
-        let _guard = self.items.push_name(decl_fn.name.resolve(&*self.source)?);
+        let name = decl_fn.name.resolve(&self.storage, &*self.source)?;
+        let _guard = self.items.push_name(name.as_ref());
 
         let item = self.items.item();
 
@@ -248,8 +248,8 @@ impl Index<ast::DeclFn> for Indexer<'_> {
                 }
                 ast::FnArg::Ident(ident) => {
                     let span = ident.span();
-                    let ident = ident.resolve(&*self.source)?;
-                    self.scopes.declare(ident, span)?;
+                    let ident = ident.resolve(&self.storage, &*self.source)?;
+                    self.scopes.declare(ident.as_ref(), span)?;
                 }
                 _ => (),
             }
@@ -384,8 +384,8 @@ impl Index<ast::ExprLet> for Indexer<'_> {
 impl Index<ast::Ident> for Indexer<'_> {
     fn index(&mut self, ident: &ast::Ident) -> Result<(), CompileError> {
         let span = ident.span();
-        let ident = ident.resolve(&*self.source)?;
-        self.scopes.declare(ident, span)?;
+        let ident = ident.resolve(&self.storage, &*self.source)?;
+        self.scopes.declare(ident.as_ref(), span)?;
         Ok(())
     }
 }
@@ -641,7 +641,8 @@ impl Index<ast::Decl> for Indexer<'_> {
                 });
             }
             ast::Decl::DeclEnum(decl_enum) => {
-                let _guard = self.items.push_name(decl_enum.name.resolve(&*self.source)?);
+                let name = decl_enum.name.resolve(&self.storage, &*self.source)?;
+                let _guard = self.items.push_name(name.as_ref());
 
                 let span = decl_enum.span();
                 let enum_item = self.items.item();
@@ -654,7 +655,8 @@ impl Index<ast::Decl> for Indexer<'_> {
                 )?;
 
                 for (variant, body, _) in &decl_enum.variants {
-                    let _guard = self.items.push_name(variant.resolve(&*self.source)?);
+                    let variant_ident = variant.resolve(&self.storage, &*self.source)?;
+                    let _guard = self.items.push_name(variant_ident.as_ref());
 
                     let span = variant.span();
 
@@ -669,9 +671,8 @@ impl Index<ast::Decl> for Indexer<'_> {
                 }
             }
             ast::Decl::DeclStruct(decl_struct) => {
-                let _guard = self
-                    .items
-                    .push_name(decl_struct.ident.resolve(&*self.source)?);
+                let ident = decl_struct.ident.resolve(&self.storage, &*self.source)?;
+                let _guard = self.items.push_name(ident.as_ref());
 
                 self.query.index_struct(
                     self.items.item(),
@@ -687,7 +688,8 @@ impl Index<ast::Decl> for Indexer<'_> {
                 let mut guards = Vec::new();
 
                 for ident in decl_impl.path.components() {
-                    guards.push(self.items.push_name(ident.resolve(&*self.source)?));
+                    let ident = ident.resolve(&self.storage, &*self.source)?;
+                    guards.push(self.items.push_name(ident.as_ref()));
                 }
 
                 self.impl_items.push(self.items.item());
@@ -700,8 +702,8 @@ impl Index<ast::Decl> for Indexer<'_> {
             }
             ast::Decl::DeclMod(decl_mod) => {
                 if let Some(body) = &decl_mod.body {
-                    let name = decl_mod.name.resolve(&*self.source)?;
-                    let _guard = self.items.push_name(name);
+                    let name = decl_mod.name.resolve(&self.storage, &*self.source)?;
+                    let _guard = self.items.push_name(name.as_ref());
                     self.index(&*body.file)?;
                 } else {
                     self.handle_file_mod(decl_mod)?;
@@ -716,8 +718,8 @@ impl Index<ast::Decl> for Indexer<'_> {
 impl Index<ast::Path> for Indexer<'_> {
     fn index(&mut self, path: &ast::Path) -> Result<(), CompileError> {
         if let Some(ident) = path.try_as_ident() {
-            let ident = ident.resolve(&*self.source)?;
-            self.scopes.mark_use(ident);
+            let ident = ident.resolve(&self.storage, &*self.source)?;
+            self.scopes.mark_use(ident.as_ref());
         }
 
         Ok(())
@@ -765,8 +767,8 @@ impl Index<ast::ExprClosure> for Indexer<'_> {
                     return Err(CompileError::UnsupportedSelf { span: s.span() });
                 }
                 ast::FnArg::Ident(ident) => {
-                    let ident = ident.resolve(&*self.source)?;
-                    self.scopes.declare(ident, span)?;
+                    let ident = ident.resolve(&self.storage, &*self.source)?;
+                    self.scopes.declare(ident.as_ref(), span)?;
                 }
                 ast::FnArg::Ignore(..) => (),
             }
@@ -912,7 +914,7 @@ impl Index<ast::ExprCall> for Indexer<'_> {
 
 impl Index<ast::LitTemplate> for Indexer<'_> {
     fn index(&mut self, lit_template: &ast::LitTemplate) -> Result<(), CompileError> {
-        let template = lit_template.resolve(&*self.source)?;
+        let template = lit_template.resolve(&self.storage, &*self.source)?;
 
         for c in &template.components {
             match c {
